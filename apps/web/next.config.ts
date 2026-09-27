@@ -1,12 +1,18 @@
 import type { NextConfig } from "next";
 
+const isVercel = Boolean(process.env.VERCEL);
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   skipTrailingSlashRedirect: true,
-  experimental: {
-    cpus: 1,
-    workerThreads: false,
-  },
+  ...(isVercel
+    ? {}
+    : {
+        experimental: {
+          cpus: 1,
+          workerThreads: false,
+        },
+      }),
   async redirects() {
     return [
       {
