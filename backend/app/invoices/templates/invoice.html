@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invoice {{ invoice.invoice_number }}</title>
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────── */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    @page {
+      size: A4;
+      margin: 12mm 14mm 14mm 14mm;
+    }
+    body {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      font-size: 10pt;
+      color: #1e293b;
+      line-height: 1.5;
+      background: #fff;
+    }
+    a { color: inherit; text-decoration: none; }
+
+    /* ── Header / Brand ──────────────────────────────────── */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding-bottom: 18pt;
+      border-bottom: 2pt solid #0a2540;
+      margin-bottom: 18pt;
+    }
+    .brand-block {}
+    .brand-name {
+      font-size: 22pt;
+      font-weight: 800;
+      color: #0a2540;
+      letter-spacing: -0.5pt;
+    }
+    .brand-tagline {
+      font-size: 8pt;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 1pt;
+      margin-top: 1pt;
+    }
+    .org-details {
+      font-size: 8.5pt;
+      color: #475569;
+      margin-top: 8pt;
+      line-height: 1.6;
+    }
+    .invoice-meta {
+      text-align: right;
+    }
+    .invoice-label {
+      font-size: 8pt;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.8pt;
+      margin-bottom: 2pt;
+    }
+    .invoice-number {
+      font-size: 18pt;
+      font-weight: 700;
+      color: #0a2540;
+    }
+    .invoice-status-badge {
+      display: inline-block;
+      margin-top: 6pt;
+      padding: 2pt 8pt;
+      background: #e0f2fe;
+      color: #0369a1;
+      border-radius: 20pt;
+      font-size: 7.5pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5pt;
+    }
+    {% if invoice.status == 'VOID' %}
+    .invoice-status-badge { background: #fee2e2; color: #b91c1c; }
+    {% elif invoice.status in ('PAID',) %}
+    .invoice-status-badge { background: #dcfce7; color: #15803d; }
+    {% elif effective_status == 'OVERDUE' %}
+    .invoice-status-badge { background: #fef3c7; color: #b45309; }
+    {% endif %}
+
+    /* ── Parties ────────────────────────────────────────────── */
+    .parties {
+      display: flex;
+      gap: 30pt;
+      margin-bottom: 20pt;
+    }
+    .party-block {
+      flex: 1;
+    }
+    .party-block.bill-to {
+      background: #f8fafc;
+      border-left: 3pt solid #0ea5e9;
+      padding: 10pt 12pt;
+      border-radius: 3pt;
+    }
+    .party-label {
+      font-size: 7pt;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 1pt;
+      margin-bottom: 5pt;
+    }
+    .party-name {
+      font-size: 11pt;
+      font-weight: 700;
+      color: #0a2540;
+    }
+    .party-detail {
+      font-size: 8.5pt;
+      color: #475569;
+      line-height: 1.6;
+    }
+
+    /* ── Date / Terms Grid ──────────────────────────────────── */
+    .meta-grid {
+      display: flex;
+      gap: 0;
+      border: 1pt solid #e2e8f0;
+      border-radius: 4pt;
+      margin-bottom: 20pt;
+      overflow: hidden;
+    }
+    .meta-cell {
+      flex: 1;
+      padding: 8pt 12pt;
+      border-right: 1pt solid #e2e8f0;
+    }
+    .meta-cell:last-child { border-right: none; }
+    .meta-cell-label {
+      font-size: 7pt;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.8pt;
+      margin-bottom: 2pt;
+    }
+    .meta-cell-value {
+      font-size: 9.5pt;
+      font-weight: 600;
+      color: #1e293b;
+    }
+
+    /* ── Line Items Table ───────────────────────────────────── */
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 16pt;
+      font-size: 9pt;
+    }
+    .items-table th {
+      background: #0a2540;
+      color: #fff;
+      padding: 7pt 10pt;
+      text-align: left;
+      font-size: 7.5pt;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5pt;
+    }
+    .items-table th.right { text-align: right; }
+    .items-table td {
+      padding: 8pt 10pt;
+      border-bottom: 1pt solid #f1f5f9;
+      vertical-align: top;
+      color: #334155;
+    }
+    .items-table td.right { text-align: right; }
+    .items-table td.desc { font-weight: 500; color: #1e293b; }
+    .items-table tr:last-child td { border-bottom: none; }
+    .items-table tr:nth-child(even) td { background: #f8fafc; }
+
+    /* ── Totals Section ─────────────────────────────────────── */
+    .totals-section {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 24pt;
+    }
+    .totals-table {
+      width: 240pt;
+    }
+    .totals-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 4pt 0;
+      font-size: 9.5pt;
+      color: #475569;
+    }
+    .totals-row.subtotal { border-top: 1pt solid #e2e8f0; padding-top: 8pt; }
+    .totals-row.discount { color: #16a34a; }
+    .totals-row.grand-total {
+      border-top: 2pt solid #0a2540;
+      border-bottom: 2pt solid #0a2540;
+      padding: 8pt 0;
+      margin-top: 4pt;
+      font-size: 12pt;
+      font-weight: 800;
+      color: #0a2540;
+    }
+    .totals-row .label { font-weight: 500; }
+    .totals-row .amount { font-weight: 600; font-variant-numeric: tabular-nums; }
+    .totals-row.grand-total .amount { font-weight: 800; }
+
+    /* ── Notes & Terms ──────────────────────────────────────── */
+    .notes-section {
+      margin-top: 16pt;
+      display: flex;
+      gap: 20pt;
+    }
+    .notes-block {
+      flex: 1;
+      padding: 10pt 12pt;
+      background: #f8fafc;
+      border-radius: 4pt;
+      border: 1pt solid #e2e8f0;
+    }
+    .notes-label {
+      font-size: 7pt;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.8pt;
+      margin-bottom: 5pt;
+    }
+    .notes-content {
+      font-size: 8.5pt;
+      color: #475569;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    /* ── Footer ─────────────────────────────────────────────── */
+    .footer {
+      margin-top: 24pt;
+      padding-top: 10pt;
+      border-top: 1pt solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 7.5pt;
+      color: #94a3b8;
+    }
+    .footer-brand { font-weight: 700; color: #64748b; }
+
+    /* ── Page break ─────────────────────────────────────────── */
+    .page-break { page-break-after: always; }
+  </style>
+</head>
+<body>
+
+  <!-- ══ HEADER ══════════════════════════════════════════════ -->
+  <div class="header">
+    <div class="brand-block">
+      {% if org.logo_url %}
+      <img src="{{ org.logo_url }}" alt="{{ org.name }}" style="max-height:40pt; max-width:120pt; margin-bottom:6pt;">
+      {% else %}
+      <div class="brand-name">{{ org.name }}</div>
+      <div class="brand-tagline">Invoice</div>
+      {% endif %}
+      <div class="org-details">
+        {% if org.address %}
+          {{ org.address.get('line1','') }}{% if org.address.get('line2') %}, {{ org.address.get('line2') }}{% endif %}<br>
+          {{ org.address.get('city','') }}{% if org.address.get('postcode') %}, {{ org.address.get('postcode') }}{% endif %}<br>
+          {{ org.address.get('country_code','') }}
+        {% endif %}
+        {% if org.vat_number %}<br>VAT No: {{ org.vat_number }}{% endif %}
+        {% if org.company_number %}<br>Co. No: {{ org.company_number }}{% endif %}
+      </div>
+    </div>
+
+    <div class="invoice-meta">
+      <div class="invoice-label">Invoice</div>
+      <div class="invoice-number">{{ invoice.invoice_number }}</div>
+      <div class="invoice-status-badge">{{ effective_status }}</div>
+    </div>
+  </div>
+
+  <!-- ══ PARTIES ═════════════════════════════════════════════ -->
+  <div class="parties">
+    <div class="party-block">
+      <div class="party-label">From</div>
+      <div class="party-name">{{ org.name }}</div>
+      {% if org.address %}
+      <div class="party-detail">
+        {{ org.address.get('line1','') }}<br>
+        {{ org.address.get('city','') }}{% if org.address.get('postcode') %}, {{ org.address.get('postcode') }}{% endif %}
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="party-block bill-to">
+      <div class="party-label">Bill To</div>
+      <div class="party-name">{{ invoice.customer_name_snapshot or 'N/A' }}</div>
+      <div class="party-detail">
+        {% if invoice.customer_email_snapshot %}{{ invoice.customer_email_snapshot }}<br>{% endif %}
+        {% if invoice.billing_address_snapshot %}
+          {% set addr = invoice.billing_address_snapshot %}
+          {% if addr.get('line1') %}{{ addr.get('line1') }}<br>{% endif %}
+          {% if addr.get('line2') %}{{ addr.get('line2') }}<br>{% endif %}
+          {{ addr.get('city','') }}{% if addr.get('postcode') %}, {{ addr.get('postcode') }}{% endif %}<br>
+          {{ addr.get('country_code','') }}
+        {% endif %}
+        {% if invoice.customer_vat_number_snapshot %}
+          <br>VAT No: {{ invoice.customer_vat_number_snapshot }}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ META GRID ════════════════════════════════════════════ -->
+  <div class="meta-grid">
+    <div class="meta-cell">
+      <div class="meta-cell-label">Invoice Date</div>
+      <div class="meta-cell-value">{{ invoice.issue_date.strftime('%d %b %Y') }}</div>
+    </div>
+    <div class="meta-cell">
+      <div class="meta-cell-label">Due Date</div>
+      <div class="meta-cell-value">{{ invoice.due_date.strftime('%d %b %Y') }}</div>
+    </div>
+    {% if invoice.customer_reference %}
+    <div class="meta-cell">
+      <div class="meta-cell-label">Your Reference</div>
+      <div class="meta-cell-value">{{ invoice.customer_reference }}</div>
+    </div>
+    {% endif %}
+    {% if invoice.purchase_order_reference %}
+    <div class="meta-cell">
+      <div class="meta-cell-label">PO Number</div>
+      <div class="meta-cell-value">{{ invoice.purchase_order_reference }}</div>
+    </div>
+    {% endif %}
+    <div class="meta-cell">
+      <div class="meta-cell-label">Currency</div>
+      <div class="meta-cell-value">{{ invoice.currency }}</div>
+    </div>
+  </div>
+
+  <!-- ══ LINE ITEMS ═══════════════════════════════════════════ -->
+  <table class="items-table">
+    <thead>
+      <tr>
+        <th style="width:40%">Description</th>
+        <th class="right" style="width:10%">Qty</th>
+        <th class="right" style="width:15%">Unit Price</th>
+        <th class="right" style="width:10%">VAT</th>
+        {% if has_discounts %}
+        <th class="right" style="width:10%">Discount</th>
+        {% endif %}
+        <th class="right" style="width:15%">Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for line in lines %}
+      <tr>
+        <td class="desc">{{ line.description }}</td>
+        <td class="right">{{ line.quantity | fmt_qty }}</td>
+        <td class="right">{{ line.unit_price | fmt_money(invoice.currency) }}</td>
+        <td class="right">
+          {% if line.tax_rate_snapshot %}{{ line.tax_rate_snapshot }}%{% else %}—{% endif %}
+        </td>
+        {% if has_discounts %}
+        <td class="right" style="color:#16a34a;">
+          {% if line.discount_value and line.discount_value > 0 %}
+            {% if line.discount_type == 'PERCENTAGE' %}{{ line.discount_value }}%
+            {% else %}{{ line.discount_value | fmt_money(invoice.currency) }}{% endif %}
+          {% else %}—{% endif %}
+        </td>
+        {% endif %}
+        <td class="right">{{ line.gross_amount | fmt_money(invoice.currency) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- ══ TOTALS ═══════════════════════════════════════════════ -->
+  <div class="totals-section">
+    <div class="totals-table">
+      <div class="totals-row subtotal">
+        <span class="label">Subtotal</span>
+        <span class="amount">{{ invoice.subtotal | fmt_money(invoice.currency) }}</span>
+      </div>
+      {% if invoice.discount_total and invoice.discount_total > 0 %}
+      <div class="totals-row discount">
+        <span class="label">Discount</span>
+        <span class="amount">−{{ invoice.discount_total | fmt_money(invoice.currency) }}</span>
+      </div>
+      {% endif %}
+      <div class="totals-row">
+        <span class="label">VAT</span>
+        <span class="amount">{{ invoice.tax_total | fmt_money(invoice.currency) }}</span>
+      </div>
+      <div class="totals-row grand-total">
+        <span class="label">TOTAL DUE</span>
+        <span class="amount">{{ invoice.total | fmt_money(invoice.currency) }}</span>
+      </div>
+      {% if invoice.amount_paid and invoice.amount_paid > 0 %}
+      <div class="totals-row" style="color:#16a34a;">
+        <span class="label">Amount Paid</span>
+        <span class="amount">{{ invoice.amount_paid | fmt_money(invoice.currency) }}</span>
+      </div>
+      <div class="totals-row" style="font-weight:700; color:#b91c1c;">
+        <span class="label">Balance Due</span>
+        <span class="amount">{{ invoice.amount_due | fmt_money(invoice.currency) }}</span>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ══ NOTES & TERMS ════════════════════════════════════════ -->
+  {% if invoice.notes or invoice.terms %}
+  <div class="notes-section">
+    {% if invoice.notes %}
+    <div class="notes-block">
+      <div class="notes-label">Notes</div>
+      <div class="notes-content">{{ invoice.notes }}</div>
+    </div>
+    {% endif %}
+    {% if invoice.terms %}
+    <div class="notes-block">
+      <div class="notes-label">Payment Terms</div>
+      <div class="notes-content">{{ invoice.terms }}</div>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- ══ FOOTER ═══════════════════════════════════════════════ -->
+  <div class="footer">
+    <div>
+      <span class="footer-brand">{{ org.name }}</span>
+      {% if org.vat_number %} · VAT {{ org.vat_number }}{% endif %}
+      {% if org.company_number %} · Reg. {{ org.company_number }}{% endif %}
+    </div>
+    <div>{{ invoice.invoice_number }} · Generated {{ now.strftime('%d %b %Y') }}</div>
+  </div>
+
+</body>
+</html>

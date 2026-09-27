@@ -1,0 +1,69 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+.hypothesis/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+.cache/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment
+.env
+.env.local
+.env.production
+.env.staging
+
+# Docker
+.docker/
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/settings.json
+.idea/
+*.sublime-workspace
+
+# Logs
+logs/
+*.log
+
+# Uploads / temp
+uploads/
+tmp/
+
+# SQLite & Databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Binaries & Tools
+infrastructure/tools/
+*.exe
